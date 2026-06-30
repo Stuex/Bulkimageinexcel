@@ -2,29 +2,66 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Bulk Image to Excel Exporter</title>
     <!-- Include ExcelJS and FileSaver libraries via CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
-        body { font-family: sans-serif; margin: 30px; background: #f4f6f9; color: #333; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .actions { margin-bottom: 20px; display: flex; gap: 10px; }
-        button, input[type="file"] { padding: 10px 15px; font-size: 14px; cursor: pointer; }
-        button { background-color: #217346; color: white; border: none; border-radius: 4px; font-weight: bold; }
-        button:hover { background-color: #1a5c38; }
+        /* Mobile-friendly and Dark Mode Reset */
+        * { box-sizing: border-box; }
+        body { 
+            font-family: sans-serif; 
+            margin: 0; 
+            padding: 15px; 
+            background-color: #000000; /* Black background */
+            color: #ffffff; /* White text */
+        }
+        
+        .container { 
+            width: 100%; 
+            max-width: 600px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            border: 2px solid #ffffff; /* White box outline */
+            border-radius: 8px; 
+        }
+
+        h2, p { text-align: center; }
+
+        .actions { 
+            display: flex; 
+            flex-direction: column; /* Stacks nicely on mobile screens */
+            gap: 15px; 
+            margin-bottom: 20px; 
+        }
+
+        button, input[type="file"] { 
+            width: 100%; 
+            padding: 15px; 
+            font-size: 16px; 
+            cursor: pointer; 
+            background-color: #000000;
+            color: #ffffff;
+            border: 2px solid #ffffff; /* White box outline for inputs */
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        button:hover:not(:disabled) { background-color: #333333; }
+        button:disabled { border-color: #555555; color: #555555; cursor: not-allowed; }
+
+        /* Table styling for dark theme */
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
-        th { background-color: #eaeaea; }
-        img { max-width: 100px; max-height: 100px; object-fit: contain; }
+        th, td { border: 1px solid #ffffff; padding: 10px; text-align: center; }
+        img { max-width: 80px; max-height: 80px; object-fit: contain; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Bulk Image to Excel (Front/Back)</h2>
-    <p>Select multiple images from your gallery. They will automatically sort into Front (Col A) and Back (Col B).</p>
+    <h2>Image to Excel</h2>
+    <p>Select images. Left is Front (A), Right is Back (B).</p>
     
     <div class="actions">
         <input type="file" id="imageInput" multiple accept="image/*">
@@ -32,13 +69,6 @@
     </div>
 
     <table id="previewTable" style="display:none;">
-        <thead>
-            <tr>
-                <th>Row</th>
-                <th>Column A (Front)</th>
-                <th>Column B (Back)</th>
-            </tr>
-        </thead>
         <tbody id="tableBody"></tbody>
     </table>
 </div>
@@ -65,21 +95,16 @@
         downloadBtn.disabled = false;
         previewTable.style.display = 'table';
 
-        // Loop through files and organize them into rows of pairs (Front / Back)
+        // Loop through files to preview
         for (let i = 0; i < uploadedFiles.length; i += 2) {
             const row = document.createElement('tr');
             
-            // Row number cell
-            const rowNumCell = document.createElement('td');
-            rowNumCell.textContent = Math.floor(i / 2) + 1;
-            row.appendChild(rowNumCell);
-
-            // Front Column (Even indices: 0, 2, 4...)
+            // Front Image
             const frontCell = document.createElement('td');
             createImagePreview(uploadedFiles[i], frontCell);
             row.appendChild(frontCell);
 
-            // Back Column (Odd indices: 1, 3, 5...)
+            // Back Image
             const backCell = document.createElement('td');
             if (uploadedFiles[i + 1]) {
                 createImagePreview(uploadedFiles[i + 1], backCell);
@@ -97,7 +122,6 @@
         container.appendChild(img);
     }
 
-    // Helper to read file as ArrayBuffer for ExcelJS
     const readFileAsBuffer = (file) => {
         return new Promise((resolve) => {
             const reader = new FileReader();
@@ -106,7 +130,7 @@
         });
     };
 
-    // 2. Generate and Download Excel with Embedded Images
+    // 2. Generate and Download Excel (Headers removed, Strict Anchoring applied)
     downloadBtn.addEventListener('click', async () => {
         downloadBtn.textContent = 'Generating...';
         downloadBtn.disabled = true;
@@ -114,37 +138,31 @@
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Images');
 
-        // Set up columns and basic widths
-        worksheet.columns = [
-            { header: 'Column A (Front)', key: 'front', width: 25 },
-            { header: 'Column B (Back)', key: 'back', width: 25 }
-        ];
+        // Set column widths without defining headers
+        worksheet.getColumn(1).width = 25; // Column A
+        worksheet.getColumn(2).width = 25; // Column B
 
-        // Format header row style
-        worksheet.getRow(1).height = 25;
-        worksheet.getRow(1).font = { bold: true };
-
-        // Process images into rows
         for (let i = 0; i < uploadedFiles.length; i += 2) {
-            const excelRowNum = Math.floor(i / 2) + 2; // +2 because Excel rows start at 1 and Row 1 is headers
+            const excelRowNum = Math.floor(i / 2) + 1; // Starts strictly at row 1
             const row = worksheet.getRow(excelRowNum);
-            row.height = 100; // Give cells enough height to display the image nicely
+            row.height = 120; // Ensure the cell is tall enough for the image
 
-            // Insert Front Image (Col A / Column index 0)
+            // Insert Front Image (Col A)
             if (uploadedFiles[i]) {
                 const buffer = await readFileAsBuffer(uploadedFiles[i]);
                 const imageId = workbook.addImage({
                     buffer: buffer,
                     extension: uploadedFiles[i].type.split('/')[1] || 'png',
                 });
+                // Use precise top-left (tl) and bottom-right (br) bounds to lock image inside the cell
                 worksheet.addImage(imageId, {
                     tl: { col: 0, row: excelRowNum - 1 },
-                    ext: { width: 150, height: 120 },
-                    editAs: 'oneCell'
+                    br: { col: 1, row: excelRowNum },
+                    editAs: 'oneCell' 
                 });
             }
 
-            // Insert Back Image (Col B / Column index 1)
+            // Insert Back Image (Col B)
             if (uploadedFiles[i + 1]) {
                 const buffer = await readFileAsBuffer(uploadedFiles[i + 1]);
                 const imageId = workbook.addImage({
@@ -153,15 +171,14 @@
                 });
                 worksheet.addImage(imageId, {
                     tl: { col: 1, row: excelRowNum - 1 },
-                    ext: { width: 150, height: 120 },
+                    br: { col: 2, row: excelRowNum },
                     editAs: 'oneCell'
                 });
             }
         }
 
-        // Save file using FileSaver.js
         const buffer = await workbook.xlsx.writeBuffer();
-        saveAs(new Blob([buffer]), "Bulk_Images_Front_Back.xlsx");
+        saveAs(new Blob([buffer]), "Gallery_Export.xlsx");
 
         downloadBtn.textContent = 'Download Excel File';
         downloadBtn.disabled = false;
@@ -170,4 +187,3 @@
 
 </body>
 </html>
-	
